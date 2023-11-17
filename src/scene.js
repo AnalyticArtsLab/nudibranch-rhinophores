@@ -74,17 +74,42 @@ export function simpleRhinophoreMesh2(options) {
   const LOOP_LENGTH = 12;
   const SHAFT_LENGTH = (1 - TIP_PERCENTAGE) * LENGTH;
 
+
   const path = [];
-  for (let i = 0; i < STEPS; i++) {
-    const y = (i * SHAFT_LENGTH) / STEPS - 0.02;
+  for (let i = 0; i <= STEPS * 2; i++) {
+    let y;
+    if (i <= STEPS) {
+      y = (i * SHAFT_LENGTH) / STEPS;
+    } else {
+      const percentage = (i - STEPS) / STEPS;
+     
+      const alpha = (percentage * Math.PI) / 2;
+
+      y = Math.sin(alpha) * LENGTH * TIP_PERCENTAGE + path[STEPS].y;
+    }
+  
     path.push(new Vector3(0, y, 0));
   }
 
-  const calcThickness = (i) =>
-    THICKNESS +
-    THICKNESS *
-      BASE_FLARE_PERCENTAGE *
-      (2 - 2 / (1 + Math.exp((-i / STEPS) * BASE_FALLOFF)));
+
+  const calcThickness = (i) => {
+    
+
+    if (i <= STEPS) {
+      return (
+        THICKNESS +
+        THICKNESS *
+          BASE_FLARE_PERCENTAGE *
+          (2 - 2 / (1 + Math.exp(-(i / STEPS) * BASE_FALLOFF)))
+      );
+    } else {
+      const tipPercentage = (i - STEPS) / STEPS;
+       
+      const theta = (tipPercentage * Math.PI) / 2;
+      const radius = THICKNESS * Math.cos(theta);
+      return radius;
+    }
+  };
 
   const rhinophoreOptions = {
     path,
@@ -96,20 +121,6 @@ export function simpleRhinophoreMesh2(options) {
     "simple rhinophore",
     rhinophoreOptions
   );
-
-  const diameter = calcThickness(STEPS-1) * 2;
-
-  const endCap = MeshBuilder.CreateSphere("end cap", 
-  {diameterX:diameter,
-    diameterZ:diameter, 
-    diameterY: 1.9 * LENGTH * TIP_PERCENTAGE, 
-    subdivisions: LOOP_LENGTH, 
-    arc:1.0, 
-    slice:0.51});
-  endCap.position = path[path.length - 1];
-
-
-const rhinophoreMesh = Mesh.MergeMeshes([rhinophore, endCap], true, true);
 
 
   return rhinophore;
