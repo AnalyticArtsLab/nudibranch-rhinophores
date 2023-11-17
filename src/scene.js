@@ -6,6 +6,7 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Scene } from "@babylonjs/core/scene";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { MeshBuilder } from "@babylonjs/core";
 
 import { HEMesh } from "he-mesh/src/he-mesh";
 import { loopSubdivision } from "he-mesh/src/subdivision";
@@ -59,25 +60,78 @@ function renderPoints(
   return mesh;
 }
 
-export function simpleRhinophoreMesh() {
+export function simpleRhinophoreMesh2(options) {
+  const LENGTH = options.length.value;
+  const THICKNESS = options.thickness.value;
+  const TIP_PERCENTAGE = options.tipPercentage.value;
+
+  // percentage of the THICKNESS to add for the flare at the base
+  const BASE_FLARE_PERCENTAGE = options.baseFlarePercentage.value;
+
+  // how quickly the flare falls off, larger numbers fall off more quickly 4-16 is a good range. Larger values create a single step flare, and smaller values haven't collapsed down enough to meet the cap
+  const BASE_FALLOFF = options.baseFalloff.value;
+  const STEPS = 10;
+  const LOOP_LENGTH = 12;
+  const SHAFT_LENGTH = (1 - TIP_PERCENTAGE) * LENGTH;
+
+  const path = [];
+  for (let i = 0; i < STEPS; i++) {
+    const y = (i * SHAFT_LENGTH) / STEPS - 0.02;
+    path.push(new Vector3(0, y, 0));
+  }
+
+  const calcThickness = (i) =>
+    THICKNESS +
+    THICKNESS *
+      BASE_FLARE_PERCENTAGE *
+      (2 - 2 / (1 + Math.exp((-i / STEPS) * BASE_FALLOFF)));
+
+  const rhinophoreOptions = {
+    path,
+    tessellation: LOOP_LENGTH,
+    radiusFunction: calcThickness,
+  };
+
+  const rhinophore = MeshBuilder.CreateTube(
+    "simple rhinophore",
+    rhinophoreOptions
+  );
+
+  const diameter = calcThickness(STEPS-1) * 2;
+
+  const endCap = MeshBuilder.CreateSphere("end cap", 
+  {diameterX:diameter,
+    diameterZ:diameter, 
+    diameterY: 1.9 * LENGTH * TIP_PERCENTAGE, 
+    subdivisions: LOOP_LENGTH, 
+    arc:1.0, 
+    slice:0.51});
+  endCap.position = path[path.length - 1];
+
+
+const rhinophoreMesh = Mesh.MergeMeshes([rhinophore, endCap], true, true);
+
+
+  return rhinophore;
+}
+
+export function simpleRhinophoreMesh(options) {
   const positions = [];
   const indices = [];
 
-  const LENGTH = 10;
-  const THICKNESS = 0.5;
-  const TIP_PERCENTAGE = 0.1;
+  const LENGTH = options.length.value;
+  const THICKNESS = options.thickness.value;
+  const TIP_PERCENTAGE = options.tipPercentage.value;
 
   // percentage of the THICKNESS to add for the flare at the base
-  const BASE_FLARE_PERCENTAGE = 0.8; 
+  const BASE_FLARE_PERCENTAGE = options.baseFlarePercentage.value;
 
   // how quickly the flare falls off, larger numbers fall off more quickly 4-16 is a good range. Larger values create a single step flare, and smaller values haven't collapsed down enough to meet the cap
-  const BASE_FALLOFF = 16; 
+  const BASE_FALLOFF = options.baseFalloff.value;
 
   const STEPS = 10;
- 
   const LOOP_LENGTH = 12;
 
- 
   const SHAFT_LENGTH = (1 - TIP_PERCENTAGE) * LENGTH;
 
   for (let i = 0; i < STEPS; i++) {
@@ -85,7 +139,10 @@ export function simpleRhinophoreMesh() {
     let radius = THICKNESS;
 
     // add the flare at the base
-    radius += THICKNESS * BASE_FLARE_PERCENTAGE *  (2 - 2/(1+Math.exp(-i/STEPS* BASE_FALLOFF)));
+    radius +=
+      THICKNESS *
+      BASE_FLARE_PERCENTAGE *
+      (2 - 2 / (1 + Math.exp((-i / STEPS) * BASE_FALLOFF)));
 
     for (let a = 0; a < 2 * Math.PI; a += (2 * Math.PI) / LOOP_LENGTH) {
       const x = Math.cos(a) * radius;
@@ -96,29 +153,27 @@ export function simpleRhinophoreMesh() {
 
   // add the end cap
   // this is in the shape of a dome
-  
+
   const POINTS_PER_LOOP = positions.length / STEPS;
   const TIP_HEIGHT = LENGTH * TIP_PERCENTAGE;
-  const shaftTop = positions[positions.length-1].y;
+  const shaftTop = positions[positions.length - 1].y;
 
   // we start one step in to not duplicate the points along the top of the shaft
   const domeStep = Math.PI / STEPS;
-  for (let alpha = domeStep; alpha <= Math.PI/2; alpha +=domeStep) {
+  for (let alpha = domeStep; alpha <= Math.PI / 2; alpha += domeStep) {
     for (
       let beta = 0;
       beta < 2 * Math.PI;
       beta += (2 * Math.PI) / LOOP_LENGTH
     ) {
       const x = Math.cos(beta) * THICKNESS * Math.cos(alpha);
-      const y = Math.sin(alpha) * TIP_HEIGHT  + shaftTop;
+      const y = Math.sin(alpha) * TIP_HEIGHT + shaftTop;
       const z = Math.sin(beta) * THICKNESS * Math.cos(alpha);
       positions.push(new Vector3(x, y, z));
     }
   }
 
-
-
-  for (let i = 0; i < (positions.length/ LOOP_LENGTH) - 1; i++) {
+  for (let i = 0; i < positions.length / LOOP_LENGTH - 1; i++) {
     for (let j = 0; j < POINTS_PER_LOOP; j++) {
       const current = i * POINTS_PER_LOOP + j;
       const next = i * POINTS_PER_LOOP + ((j + 1) % POINTS_PER_LOOP);
@@ -169,7 +224,15 @@ export const createScene = async function (engine, canvas) {
   // Default intensity is 1. Let's dim the light a small amount
   light.intensity = 0.7;
 
-  simpleRhinophoreMesh();
+  const options = {
+    thickness: { type: "range", min: 0.1, max: 2, value: 0.5 },
+    length: { type: "range", min: 1, max: 20, value: 10 },
+    tipPercentage: { type: "range", min: 0.05, max: 0.9, value: 0.1 },
+    baseFlarePercentage: { type: "range", min: 0.0, max: 2, value: 0.8 },
+    baseFalloff: { type: "range", min: 4, max: 16, value: 5 },
+  };
+
+  simpleRhinophoreMesh2(options);
 
   return scene;
 };
