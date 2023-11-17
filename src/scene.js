@@ -10,11 +10,15 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { HEMesh } from "he-mesh/src/he-mesh";
 import { loopSubdivision } from "he-mesh/src/subdivision";
 
-
 import { tee3D } from "he-mesh/test/meshes";
 
-
-function renderPoints(points, faces, showWireframe = false, name = "mesh") {
+function renderPoints(
+  points,
+  faces,
+  name = "mesh",
+  showWireframe = false,
+  renderBackface = false
+) {
   const rawPoints = [];
   points.forEach((p) => {
     rawPoints.push(p.x);
@@ -34,6 +38,16 @@ function renderPoints(points, faces, showWireframe = false, name = "mesh") {
   vertexData.positions = rawPoints;
   vertexData.indices = rawFaces;
   vertexData.normals = normals;
+  if (points[0].color) {
+    const colors = [];
+    points.forEach((p) => {
+      colors.push(p.color[0]);
+      colors.push(p.color[1]);
+      colors.push(p.color[2]);
+      colors.push(p.color[3]);
+    });
+    vertexData.colors = colors;
+  }
 
   vertexData.applyToMesh(mesh);
 
@@ -41,22 +55,92 @@ function renderPoints(points, faces, showWireframe = false, name = "mesh") {
   material.wireframe = showWireframe;
   mesh.material = material;
 
+  material.backFaceCulling = !renderBackface;
   return mesh;
 }
 
+export function simpleRhinophoreMesh() {
+  const positions = [];
+  const indices = [];
 
+  const LENGTH = 10;
+  const THICKNESS = 0.5;
+  const TIP_PERCENTAGE = 0.1;
 
-function subdivisionExperiment() {
-  const { points, faces } = tee3D;
-const iterations = 3;
-  const heMesh = new HEMesh(points, faces);
+  // percentage of the THICKNESS to add for the flare at the base
+  const BASE_FLARE_PERCENTAGE = 0.8; 
 
-  for (let i = 0; i < iterations; i++) {
-    loopSubdivision(heMesh);
+  // how quickly the flare falls off, larger numbers fall off more quickly 4-16 is a good range. Larger values create a single step flare, and smaller values haven't collapsed down enough to meet the cap
+  const BASE_FALLOFF = 16; 
+
+  const STEPS = 10;
+ 
+  const LOOP_LENGTH = 12;
+
+ 
+  const SHAFT_LENGTH = (1 - TIP_PERCENTAGE) * LENGTH;
+
+  for (let i = 0; i < STEPS; i++) {
+    const y = (i * SHAFT_LENGTH) / STEPS - 0.02;
+    let radius = THICKNESS;
+
+    // add the flare at the base
+    radius += THICKNESS * BASE_FLARE_PERCENTAGE *  (2 - 2/(1+Math.exp(-i/STEPS* BASE_FALLOFF)));
+
+    for (let a = 0; a < 2 * Math.PI; a += (2 * Math.PI) / LOOP_LENGTH) {
+      const x = Math.cos(a) * radius;
+      const z = Math.sin(a) * radius;
+      positions.push(new Vector3(x, y, z));
+    }
   }
 
-  const polySoup = heMesh.toPolygonSoup();
-  const m0 = renderPoints(polySoup.points, polySoup.faces, false, "loopSubdivision");
+  // add the end cap
+  // this is in the shape of a dome
+  
+  const POINTS_PER_LOOP = positions.length / STEPS;
+  const TIP_HEIGHT = LENGTH * TIP_PERCENTAGE;
+  const shaftTop = positions[positions.length-1].y;
+
+  // we start one step in to not duplicate the points along the top of the shaft
+  const domeStep = Math.PI / STEPS;
+  for (let alpha = domeStep; alpha <= Math.PI/2; alpha +=domeStep) {
+    for (
+      let beta = 0;
+      beta < 2 * Math.PI;
+      beta += (2 * Math.PI) / LOOP_LENGTH
+    ) {
+      const x = Math.cos(beta) * THICKNESS * Math.cos(alpha);
+      const y = Math.sin(alpha) * TIP_HEIGHT  + shaftTop;
+      const z = Math.sin(beta) * THICKNESS * Math.cos(alpha);
+      positions.push(new Vector3(x, y, z));
+    }
+  }
+
+
+
+  for (let i = 0; i < (positions.length/ LOOP_LENGTH) - 1; i++) {
+    for (let j = 0; j < POINTS_PER_LOOP; j++) {
+      const current = i * POINTS_PER_LOOP + j;
+      const next = i * POINTS_PER_LOOP + ((j + 1) % POINTS_PER_LOOP);
+      indices.push([current, next, current + POINTS_PER_LOOP]);
+      indices.push([next, next + POINTS_PER_LOOP, current + POINTS_PER_LOOP]);
+    }
+  }
+
+  // const endLoopStart = positions.length - LOOP_LENGTH;
+
+  positions.forEach((p) => {
+    p.color = [0.8, 0.8, 1.0, 1];
+  });
+
+  const rhinophore = renderPoints(
+    positions,
+    indices,
+    "rhinophore",
+    false,
+    true
+  );
+  return rhinophore;
 }
 
 export const createScene = async function (engine, canvas) {
@@ -69,19 +153,23 @@ export const createScene = async function (engine, canvas) {
     "camera1",
     Math.PI / 2,
     Math.PI / 2,
-    5,
-    new Vector3(1.5, 1, 0),
+    25,
+    new Vector3(0, 5, 0),
     scene
   );
   camera1.attachControl(canvas, true);
   scene.activeCameras.push(camera1);
 
-  const light = new HemisphericLight("light", new Vector3(-1.5, 1.5, 0.75), scene);
+  const light = new HemisphericLight(
+    "light",
+    new Vector3(-1.5, 1.5, 0.75),
+    scene
+  );
 
   // Default intensity is 1. Let's dim the light a small amount
   light.intensity = 0.7;
 
-  subdivisionExperiment();
+  simpleRhinophoreMesh();
 
   return scene;
 };

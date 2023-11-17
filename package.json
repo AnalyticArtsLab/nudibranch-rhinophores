@@ -1,7 +1,7 @@
 {
-  "name": "babylon-template",
+  "name": "nudibranch-rhinophores",
   "version": "1.0.0",
-  "description": "This project is a template repository for starting new npm based Babylon projects.",
+  "description": "This project is an exploration of different rhinophore shapes.",
   "main": "babylon_driver.js",
   "scripts": {
     "start": "webpack serve --mode development",
