@@ -13,7 +13,9 @@
   "dependencies": {
     "@babylonjs/core": "^6.24.0",
     "@babylonjs/materials": "^6.24.0",
-    "he-mesh": "github:AnalyticArtsLab/he-mesh#main"
+    "babylonjs-loaders": "^6.32.1",
+    "he-mesh": "github:AnalyticArtsLab/he-mesh#main",
+    "simplex-noise": "^4.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.23.2",
