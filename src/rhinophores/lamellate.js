@@ -63,7 +63,7 @@ export function lamellateMesh(options) {
 
       const x = radius * Math.cos(phi);
      
-      const z = Math.min(0.5,radius * Math.sin(phi));
+      const z = Math.min(0.5 *(1 -  Math.cos(theta)),radius * Math.sin(phi));
      
       tipPoints.push(new Vector3(x, y, z));
     }

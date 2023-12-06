@@ -14,6 +14,7 @@ import { pulpitMesh } from "./rhinophores/pulpit";
 
 import { lamellateMesh } from "./rhinophores/lamellate";
 import { simpleRhinophoreMesh } from "./rhinophores/basic";
+import { ribbedRhinophoreMesh } from "./rhinophores/ribbed";
 
 
 
@@ -63,7 +64,7 @@ export const createScene = async function (engine, canvas) {
     pulpitSkewFactor: { type: "range", min: 0.1, max: 1, value: 0.03 },
     centralShaft: { type: "boolean", value: true},
   };
-  pulpitMesh(pulpitOptions);
+  // pulpitMesh(pulpitOptions);
   // simpleRhinophoreMesh(pulpitOptions);
 
   const lamellateOptions = {
@@ -85,6 +86,30 @@ export const createScene = async function (engine, canvas) {
   };
   // lamellateMesh(lamellateOptions);
 
+  const ribbedOptions = {
+    thickness: { type: "range", min: 0.1, max: 2, value: 0.5 },
+    length: { type: "range", min: 1, max: 20, value: 12 },
+    shaftNoiseFactor: { type: "range", min: 0, max: 5, value: 2 },
+    tipPercentage: { type: "range", min: 0.05, max: 0.9, value: 0.6 },
+    baseFlarePercentage: { type: "range", min: 0.0, max: 2, value: 0.8 },
+    baseFalloff: { type: "range", min: 4, max: 16, value: 20 },
 
+    pulpitThickness: { type: "range", min: 0.1, max: 2, value: 2 },
+    pulpitLengthPercentage: { type: "range", min: 0.1, max: 1, value: 0.8 },
+    baseRadiusPercentage: { type: "range", min: 0.1, max: 1, value: 0.6 },
+    horizontalNoiseZoom: { type: "range", min: 0.1, max: 1, value: 0.2 },
+    verticalNoiseZoom: { type: "range", min: 0.1, max: 1, value: 0.2 },
+    radiusNoiseFactor: { type: "range", min: 0.1, max: 1, value: 0.7 },
+    pulpitSkewFactor: { type: "range", min: 0.1, max: 1, value: 0.03 },
+    centralShaft: { type: "boolean", value: true},
+    tension: { type: "range", min: 0.1, max: 0.22, value: 0.19},
+    bumpiness: { type: "range", min: 0.0, max: 0.1, value: 0.08},
+  };
+
+  ribbedRhinophoreMesh(ribbedOptions);
+
+
+  const floor = MeshBuilder.CreateGround("floor", {width: 5, height: 5});
+  floor.color = new Color3(0,1,0);
   return scene;
 };
